@@ -1,0 +1,12 @@
+:root { --bs-border-radius: 0.65rem; }
+body { line-height: 1.55; }
+.intro { padding: 1.5rem 0 1rem; max-width: 780px; }
+.intro h1 { font-family: Georgia, serif; font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: -0.04em; }
+.eyebrow { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.15em; color: #17665b; }
+h2 { font-size: 1.55rem; margin: 1rem 0; }
+h3 { font-size: 1.1rem; margin-top: 1.5rem; }
+.notice { background: #e6eeea; border-left: 3px solid #17665b; padding: 1rem; margin: 1rem 0; }
+.table-scroll { overflow-x: auto; max-height: 480px; }
+.bslib-sidebar-layout > .sidebar { background: #eceee7; }
+.btn { margin-bottom: 0.5rem; }
+@media (max-width: 575px) { .intro { padding-top: 0.5rem; } }

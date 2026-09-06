@@ -1,0 +1,7 @@
+library(testthat)
+source("R/model.R")
+library(shiny)
+library(bslib)
+library(ggplot2)
+source("R/app.R")
+test_dir("tests/testthat", stop_on_failure = TRUE)
