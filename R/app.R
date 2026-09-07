@@ -53,6 +53,9 @@ ui <- page_sidebar(
     )
   ),
   tags$head(tags$link(rel = "stylesheet", href = "app.css")),
+  if (grepl("emscripten", R.version$platform)) {
+    tags$head(tags$script(src = "browser-downloads.js"))
+  },
   tags$div(
     class = "intro",
     tags$h1("Calculate enrollment projections."),
@@ -185,6 +188,8 @@ ui <- page_sidebar(
         c("Total enrollment" = "__total__")
       ),
       plotOutput("projection_plot", height = "360px"),
+      tags$p(class = "text-muted",
+        "Diamond: base enrollment. Dashed line: projected enrollment. Uncertainty intervals are not shown."),
       downloadButton("projection_download", "Download projections (CSV)"),
       downloadButton("ratios_download", "Download ratios (CSV)"),
       tags$h3("Projected enrollment"),
@@ -461,14 +466,16 @@ server <- function(input, output, session) {
           values = c(Observed = "#17665b", Projected = "#a45c2c")
         ) +
         scale_x_continuous(
-          breaks = pretty(c(history$year, future$year), n = 8)
+          breaks = function(limits) {
+            years <- pretty(limits, n = 8)
+            years[years == floor(years)]
+          }
         ) +
         labs(
           title = input$school,
           x = "Year",
           y = "Enrollment",
-          color = NULL,
-          caption = "Diamond: base enrollment. Dashed line: projected enrollment. Uncertainty intervals are not shown."
+          color = NULL
         ) +
         theme_minimal(base_size = 13) +
         theme(legend.position = "top", panel.grid.minor = element_blank())

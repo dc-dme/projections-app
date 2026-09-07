@@ -4,3 +4,9 @@
 .Rproj.user/
 .DS_Store
 rsconnect/
+.build-library/
+site/
+.site-new-*/
+.site-previous-*/
+node_modules/
+tests/browser/artifacts/
