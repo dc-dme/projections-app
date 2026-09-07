@@ -425,7 +425,8 @@ server <- function(input, output, session) {
       )
     )
   })
-  output$projection_plot <- renderPlot(
+  # A direct image renderer avoids renderPlot's deeper call stack in webR/Safari.
+  output$projection_plot <- renderImage(
     {
       p <- projection()
       summarize <- function(data) {
@@ -438,7 +439,7 @@ server <- function(input, output, session) {
       history <- summarize(p$history)
       base <- summarize(p$base)
       future <- rbind(base, summarize(p$projection))
-      ggplot() +
+      plot <- ggplot() +
         geom_line(
           data = history,
           aes(year, enrollment, color = "Observed"),
@@ -479,8 +480,29 @@ server <- function(input, output, session) {
         ) +
         theme_minimal(base_size = 13) +
         theme(legend.position = "top", panel.grid.minor = element_blank())
+      width <- session$clientData$output_projection_plot_width
+      if (is.null(width)) width <- 600
+      pixelratio <- session$clientData$pixelratio
+      if (is.null(pixelratio)) pixelratio <- 1
+      req(is.finite(width), width > 0, is.finite(pixelratio), pixelratio > 0)
+      path <- tempfile(fileext = ".png")
+      complete <- FALSE
+      device <- NULL
+      on.exit({
+        if (!is.null(device)) grDevices::dev.off(device)
+        if (!complete) unlink(path)
+      })
+      grDevices::png(path, width = width * pixelratio,
+        height = 360 * pixelratio, res = 72 * pixelratio)
+      device <- grDevices::dev.cur()
+      print(plot)
+      grDevices::dev.off(device)
+      device <- NULL
+      complete <- TRUE
+      list(src = path, contentType = "image/png", width = width, height = 360,
+        alt = "Enrollment by year. The solid line shows historical enrollment, a diamond marks base enrollment, and the dashed line shows projected enrollment. Rounded projected counts by grade and year are provided in the following table; unrounded values are available in the CSV download.")
     },
-    alt = "Enrollment by year. The solid line shows historical enrollment, a diamond marks base enrollment, and the dashed line shows projected enrollment. Rounded projected counts by grade and year are provided in the following table; unrounded values are available in the CSV download."
+    deleteFile = TRUE
   )
   output$projection_table <- renderTable({
     p <- projection()$projection

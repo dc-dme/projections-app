@@ -9,15 +9,21 @@ launch R, export the app, or substitute a mocked UI. The Node server mounts only
 
 ```sh
 npm ci
-npx playwright install chromium
+npx playwright install chromium webkit
 npm run test:browser
 ```
 
 Use `npm run test:browser:desktop` or `npm run test:browser:mobile` for a subset.
 `npx playwright test --list` validates test discovery without requiring an export.
 The suite uses Chromium for both desktop and Pixel 7 emulation, not a physical
-Android device. There are eleven tests, one worker, no retries, and readiness
+Android device, plus a separate WebKit regression test. There are twelve tests,
+one worker, no retries, and readiness
 polling with a 120-second cold-start limit. Each workflow has a fresh browser.
+
+Run `npm run test:browser:webkit` for the Safari regression. If a local preview
+is already running, use `PLAYWRIGHT_REUSE_SERVER=1 npm run test:browser` to reuse
+it; CI always starts its own server. GitHub Actions runs Chromium on Linux and
+WebKit on macOS against the same exported artifact.
 
 ## Coverage
 
@@ -35,6 +41,8 @@ polling with a 120-second cold-start limit. Each workflow has a fresh browser.
 - Total and grade plot images load, have alt text, and change on grade selection.
 - Mobile sidebar, all three steps, manual input, plot, responsive HTML caption,
   and horizontal overflow.
+- WebKit startup, example projections, manual entry changes, Excel entry upload,
+  projection download contents, loaded chart images, and narrow-screen resizing.
 
 Fixtures are synthetic and generated in memory. XLSX is a small OOXML archive
 created with `fflate`; neither ExcelJS nor an R fixture-generation script is used.
@@ -47,7 +55,7 @@ screenshots, failure traces, console/page errors, failed requests, network audit
 Chromium NetLog. Run `npm run test:browser:report` to inspect the HTML report.
 `node_modules/` and generated browser artifacts are excluded by `.gitignore`.
 
-Before any page starts, `browserContext.route` aborts requests outside the local
+For Chromium, before any page starts, `browserContext.route` aborts requests outside the local
 test origin. Any attempted external request fails the audit even if blocked.
 Service workers remain enabled for Shinylive; because routing is not a complete
 worker/network boundary, browser-wide NetLog independently checks all observed
@@ -113,10 +121,25 @@ capture its entire scrollable content; dedicated chart screenshots are included.
 
 - Real GitHub Pages deployment, including fresh and previously cached service
   workers, should be smoke-tested after publishing.
-- Real mobile devices, Safari/WebKit, Firefox, and headed-browser download UX are
-  outside this Chromium headless/Pixel 7 emulation suite.
+- Real mobile devices, branded Safari, Firefox, and headed-browser download UX
+  remain outside the automated Chromium and Playwright WebKit suite.
 - Binary `.xls` and screen-reader behavior are not covered.
 - Integer ticks and visual plot fidelity were inspected in screenshots, not
   asserted using OCR or image baselines.
 - Download failures from HTTP errors or malformed response headers are not
   separately injected; the recovery test covers a rejected fetch promise.
+
+## Safari Regression
+
+The original export failed in macOS WebKit with `Maximum call stack size
+exceeded` while rendering the initial UI. Pre-rendering the static UI fixed
+startup, but `renderPlot()` then overflowed while evaluating chart inputs.
+Rendering the same ggplot through `renderImage()` avoids that deeper stack.
+The WebKit regression must produce a loaded chart, not merely a visible page.
+It also covers dynamic inputs, an Excel entry file, a real CSV download, and
+resizing; detached frames during the service-worker startup reload are retried.
+
+WebKit captures console and uncaught-page-error diagnostics but does not use
+Chromium NetLog. Its uncaught-error assertions apply to the active document;
+messages from service-worker activation and the resulting navigation are retained
+in diagnostics. Do not treat this test as a worker-wide network privacy audit.

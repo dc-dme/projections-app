@@ -93,7 +93,7 @@ Rscript scripts/setup-build.R
 Rscript scripts/test-native.R
 Rscript scripts/export-shinylive.R
 npm ci
-npx playwright install chromium
+npx playwright install chromium webkit
 npm run test:browser
 ```
 
@@ -102,7 +102,7 @@ installs the canonical enrollcast source archive using its pinned checksum. It d
 activate renv for the application or change your regular R library. Linux
 builds need libarchive, libcurl, and OpenSSL development libraries; the workflow
 installs them. Playwright can install its Linux system dependencies with
-`npx playwright install --with-deps chromium`.
+`npx playwright install --with-deps chromium webkit`.
 
 The exporter stages only `app.R`, `R/`, and `www/`, then creates `site/`.
 It replaces only a directory marked as its own generated output, and only after
@@ -123,7 +123,7 @@ supported; service workers require localhost or HTTPS.
 The initial visit downloads the browser R runtime and its dependencies, so
 startup is slower than a conventional webpage. Packages are bundled into the
 site rather than installed from external repositories during startup. Browser
-tests block external requests and audit worker-inclusive network logs. This is
+tests for Chromium block external requests and audit worker-inclusive network logs. This is
 not a promise of offline operation or persistent browser caching.
 
 ## GitHub Pages
@@ -140,7 +140,8 @@ Pages URL is <https://dc-dme.github.io/projections-app/> once publication is ena
 
 Until `PAGES_ENABLED` is set, the workflow only builds and tests. Pull requests
 never deploy. The deployment job can publish only after native tests, Wasm
-artifact checks, and browser tests succeed. The previous published site remains
+artifact checks, Chromium tests, and a separate macOS WebKit test succeed. Both
+browser jobs test the same exported site artifact. The previous published site remains
 available if a build fails. Generated assets are uploaded as a Pages artifact,
 not committed to a separate branch. Disabling the variable prevents future
 deployments; it does not unpublish an existing site.
@@ -187,6 +188,15 @@ download requests bypassing Shinylive's virtual service-worker routes by fetchin
 the generated file inside the app and downloading a local Blob. Native Shiny
 downloads are unchanged. Reassess this workaround when upgrading Shinylive.
 
-Browser coverage uses desktop Chromium and Pixel-sized Chromium emulation;
-real-device Safari/iOS, Firefox, and the final HTTPS Pages deployment require
-manual verification. See `tests/browser/NOTES.md` for the remaining checklist.
+The webR entry point pre-renders the static UI before the first HTTP request,
+retaining its Bootstrap theme and dependencies. The chart uses `renderImage()`
+to draw the same ggplot directly to a temporary PNG. These avoid the deeper
+rendering call stacks that overflow in Safari; enrollment calculations are unchanged.
+Native Shiny retains its normal UI initialization. Temporary chart images are
+removed after delivery or on rendering failure.
+
+Browser coverage uses desktop Chromium, Pixel-sized Chromium emulation, and
+macOS WebKit. The WebKit test checks startup, projections, manual entry, Excel
+entry uploads, downloads, and resizing. Physical Safari/iOS devices, Firefox,
+and the final HTTPS deployment still require manual verification. See
+`tests/browser/NOTES.md` for the remaining checklist.

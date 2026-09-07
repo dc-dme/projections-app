@@ -20,13 +20,14 @@ module.exports = defineConfig({
     serviceWorkers: 'allow',
   },
   projects: [
-    { name: 'desktop', use: { ...devices['Desktop Chrome'] }, testIgnore: /mobile\.spec\.js/ },
+    { name: 'desktop', use: { ...devices['Desktop Chrome'] }, testIgnore: /(mobile|safari)\.spec\.js/ },
     { name: 'mobile', use: { ...devices['Pixel 7'] }, testMatch: /mobile\.spec\.js/ },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] }, testMatch: /safari\.spec\.js/ },
   ],
   webServer: {
     command: 'node tests/browser/serve.js',
     url: 'http://127.0.0.1:4173/projections-app/',
-    reuseExistingServer: false,
+    reuseExistingServer: process.env.PLAYWRIGHT_REUSE_SERVER === '1',
     timeout: 10_000,
   },
 });

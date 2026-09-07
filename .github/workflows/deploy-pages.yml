@@ -45,7 +45,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - name: Test the static site in desktop and mobile Chromium
-        run: npm run test:browser
+        run: npm run test:browser -- --project=desktop --project=mobile
       - name: Upload diagnostics and version manifest
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -56,7 +56,43 @@ jobs:
             site/build-info.json
           retention-days: 7
           if-no-files-found: ignore
-      - name: Upload tested Pages artifact
+      - name: Upload site for WebKit testing
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: shinylive-site
+          path: site
+          include-hidden-files: true
+          retention-days: 1
+
+  webkit:
+    needs: build
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: shinylive-site
+          path: site
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install webkit
+      - name: Test Safari rendering on macOS WebKit
+        run: npm run test:browser:webkit
+      - name: Upload WebKit diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: webkit-diagnostics
+          path: tests/browser/artifacts/
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Upload cross-browser-tested Pages artifact
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.PAGES_ENABLED == 'true'
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
@@ -64,7 +100,7 @@ jobs:
 
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.PAGES_ENABLED == 'true'
-    needs: build
+    needs: [build, webkit]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
