@@ -5,6 +5,9 @@ launch R, export the app, or substitute a mocked UI. The Node server mounts only
 `site/` at `http://127.0.0.1:4173/projections-app/`, serves WASM as
 `application/wasm`, and adds no COOP/COEP isolation headers.
 
+The suite tests the one-page form/results layout, including the reduced-click
+path from historical upload to projection download.
+
 ## Run
 
 ```sh
@@ -16,7 +19,7 @@ npm run test:browser
 Use `npm run test:browser:desktop` or `npm run test:browser:mobile` for a subset.
 `npx playwright test --list` validates test discovery without requiring an export.
 The suite uses Chromium for both desktop and Pixel 7 emulation, not a physical
-Android device, plus a separate WebKit regression test. There are twelve tests,
+Android device, plus a separate WebKit regression test. There are fourteen tests,
 one worker, no retries, and readiness
 polling with a 120-second cold-start limit. Each workflow has a fresh browser.
 
@@ -30,19 +33,38 @@ WebKit on macOS against the same exported artifact.
 - Example projection values, rounding, and unrounded CSV precision.
 - Singular projected year and multi-year range labels.
 - Constant, manual, and uploaded entry enrollment; cohort propagation.
+- Manual values survive projection-period changes and an invalid base-year edit.
 - CSV and XLSX historical, separate base, and out-of-order entry uploads.
 - Case-insensitive headers and first-worksheet-only XLSX handling.
 - Invalid horizon, grade order, manual counts, entry years, missing history,
-  blank historical counts, and mismatched base year clear tables, plot, summary,
-  and ratios; corrected inputs restore results.
+  blank historical counts, and mismatched base year hide the entire projection
+  body, including tables, plot, summary and download; corrected inputs restore
+  results. Hidden stale DOM is allowed; visibility, not zero row counts, is tested.
 - Contents and filenames of all five downloads.
 - Rejected download fetch shows an accessible alert; the next click completes a
   real download with correct contents and clears the alert.
 - Total and grade plot images load, have alt text, and change on grade selection.
-- Mobile sidebar, all three steps, manual input, plot, responsive HTML caption,
-  and horizontal overflow.
+- No tabs or sidebar; a single Project enrollment h1, continuous inputs before
+  results in DOM order, side-by-side sections at 1280px and stacked at 430px.
+- Example chart and download visible without navigation; CSV/XLSX history upload
+  automatically selects uploaded data without first changing the source radio.
+- Uploaded common grade labels are suggested lowest-to-highest without changing
+  their spelling. The field remains editable; uncertain labels retain file order
+  and display a review warning rather than receiving an arbitrary order.
+- Visible inline source choices, unchanged entry labels, visible grades/horizon,
+  native grade/method selects, and a definition-list projection summary.
+- Native disclosures with exact summary labels for advanced settings, history
+  preview, projection table and ratios. `disclosure()` opens only closed details;
+  there is no tab helper. Startup waits for visible `#history_status` with
+  `9 records`, never a table inside a closed disclosure.
+- History template outside disclosures, entry template conditional on upload,
+  prominent projection download, and accessible success/error status.
+- Mobile keyboard activation of skip/results links and an advanced-settings
+  summary, all inputs before results, manual input, loaded plot, responsive HTML
+  caption and no document-level horizontal overflow, including a 320px viewport.
 - WebKit startup, example projections, manual entry changes, Excel entry upload,
-  projection download contents, loaded chart images, and narrow-screen resizing.
+  projection download contents, loaded chart images, invalid-edit recovery,
+  automatic history-source selection and narrow-screen resizing.
 
 Fixtures are synthetic and generated in memory. XLSX is a small OOXML archive
 created with `fflate`; neither ExcelJS nor an R fixture-generation script is used.
@@ -71,51 +93,53 @@ The failure-feedback test mocks only one matching iframe `fetch` rejection and
 restores the original function before retrying. All successful downloads use the
 real application, service worker, Blob delivery, and Playwright download event.
 
-## Export Verification: 2026-09-06
+## One-Page Export Verification
 
-`npm run test:browser` completed in **2.8 minutes: 11 passed, 0 failed**, without
-skips or retries. Tested the supplied Shinylive 0.5.0 / assets 0.10.12 export with
-webR R 4.6.0 using Playwright 1.63.0 / Chromium 153.0.8010.12.
+The final run of `PLAYWRIGHT_REUSE_SERVER=1 npm run test:browser` passed all
+**14 tests in 4.3 minutes**, without skips or retries. All numerical and CSV
+expectations remain unchanged.
 
-All coverage listed above passed, including real filenames and full CSV contents
-for all five downloads. The mobile sidebar is intentionally stacked below
-the main content in this non-fillable bslib layout, not collapsible. Exact bslib
-attachment messages are retained in diagnostics but excluded from console errors:
-Shinylive's `terminalInterface` forwards all R stderr to `console.error`.
+Two issues found during the redesign now have regression coverage. Existing
+manual-entry input nodes are retained when the horizon changes, so a delayed
+form redraw cannot discard edits. High-priority observers resolve settings and
+projections before outputs render, preventing a Safari stack overflow when
+historical data changes while results are visible.
 
-### Resolved Findings
+### Layout And Diagnostics
 
-The refreshed app's browser-local download bridge resolves the previous virtual
-download-route failures. Real browser download assertions are unchanged; stale
-diagnostic re-fetches and per-download debug JSON have been removed.
+- Visually inspected complete 1280px desktop and 430px mobile layouts: desktop
+  inputs/results are side by side, desktop source radios remain on one line,
+  mobile inputs precede stacked results, and the chart/caption/footer are not
+  clipped. Source choices stack at 430px. No desktop radio-wrap defect observed.
+- Mobile skip link and the header `.service-header a[href="#results"]` work with
+  keyboard activation. The second View projection link remains in the form.
+  Native disclosure keyboard activation passes. The 320px sample chart loads
+  and document-width assertions pass.
+- Full-layout screenshots temporarily expand only viewport height, retaining
+  the tested width, then restore the original viewport. This avoids iframe
+  clipping that persisted even with a plain iframe-body screenshot.
+- All 13 Chromium network audits pass: no attempted external requests, worker
+  traffic to external origins, external writes, or HTTP errors. Chromium has no
+  uncaught page errors or unexpected console errors. The recorded warning is
+  `WebR is using PostMessage communication channel, nested R REPLs are not
+  available.` Frame rate was not measured. WebKit is not covered by Chromium
+  NetLog; its startup, uploads, calculations, and image rendering pass.
+- Browser diagnostics now persist beside each test as `browser-diagnostics.json`
+  or `webkit-startup.json`, as well as in report attachments. Failure traces and
+  screenshots are retained when a test fails.
 
-Moving the chart caption to responsive HTML resolves mobile caption clipping.
-The mobile test checks that the complete caption is visible and fits horizontally.
-Screenshot inspection confirms the caption wraps and chart year ticks are integers.
+### Current Screenshots
 
-### Network Findings
+Paths relative to `tests/browser/artifacts/results/`:
 
-All eleven tests in the final headless-shell run have empty `blockedExternal`,
-`external`, and `httpErrors` arrays in their `network-audit.json`. No external
-enrollment requests, runtime asset requests, or missing assets were observed,
-including browser-level worker traffic.
-The static Node server still adds no custom isolation headers. Shinylive's service
-worker independently adds COEP/CORP to its synthetic responses; the app iframe
-remains `crossOriginIsolated === false`.
+- `projections-example-number-4691f-entry-and-total-grade-plots-desktop/desktop-1280-layout.png`
+- `mobile-mobile-continuous-i-01368--and-plot-table-stay-usable-mobile/mobile-430-layout.png`
+- `mobile-mobile-continuous-i-01368--and-plot-table-stay-usable-mobile/mobile-chart.png`
+- `mobile-mobile-continuous-i-01368--and-plot-table-stay-usable-mobile/mobile-chart-caption.png`
+- `safari-WebKit-renders-proj-673e3-nputs-downloads-and-resizes-webkit/webkit-1280-layout.png`
+- `safari-WebKit-renders-proj-673e3-nputs-downloads-and-resizes-webkit/webkit-430-layout.png`
 
-### Screenshots
-
-Screenshots under `artifacts/results/`:
-
-- `projections-example-number-4691f-entry-and-total-grade-plots-desktop/desktop-total-plot.png`
-- `projections-example-number-4691f-entry-and-total-grade-plots-desktop/desktop-grade-chart.png`
-- `projections-example-number-4691f-entry-and-total-grade-plots-desktop/desktop-grade-plot.png` (page)
-- `mobile-mobile-sidebar-step-250c2--and-plot-table-stay-usable-mobile/mobile-chart.png`
-- `mobile-mobile-sidebar-step-250c2--and-plot-table-stay-usable-mobile/mobile-chart-caption.png`
-- `mobile-mobile-sidebar-step-250c2--and-plot-table-stay-usable-mobile/mobile-results.png` (page)
-
-The export uses a scrolling iframe, so outer-page full-page screenshots do not
-capture its entire scrollable content; dedicated chart screenshots are included.
+The HTML report is `tests/browser/artifacts/report/index.html`.
 
 ### Remaining Manual Checks
 

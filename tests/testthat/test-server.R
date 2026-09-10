@@ -34,7 +34,7 @@ test_that("manual entry changes propagate to projected cohorts", {
     expect_equal(projection()$projection$enrollment[c(1, 4)], c(125, 130))
     expect_match(output$entry_context$html, "Projected years: 2024 to 2025",
       fixed = TRUE)
-    expect_match(output$entry_fields$html, "entry_2024")
+    expect_equal(projection()$entry$year, 2024:2025)
   })
 })
 

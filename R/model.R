@@ -6,6 +6,44 @@ example_history <- function() {
   )
 }
 
+suggest_grade_order <- function(grades) {
+  grades <- unique(trimws(as.character(grades)))
+  grades <- grades[!is.na(grades) & nzchar(grades)]
+  keys <- tolower(trimws(gsub("[[:space:]_-]+", " ", grades)))
+  # A negative code or grade band is not the same as an elementary grade.
+  keys[grepl("^[-+]", grades)] <- NA_character_
+  aliases <- list(
+    c("ps", "preschool", "pre school"),
+    c("pk3", "pk 3", "prek3", "prek 3", "pre k3", "pre k 3",
+      "prekindergarten3", "prekindergarten 3", "pre kindergarten 3"),
+    c("pk", "prek", "pre k", "prekindergarten", "pre kindergarten",
+      "pk4", "pk 4", "prek4", "prek 4", "pre k4", "pre k 4",
+      "prekindergarten4", "prekindergarten 4", "pre kindergarten 4"),
+    c("tk", "transitional kindergarten"),
+    c("k", "kg", "kindergarten", "0", "00")
+  )
+  ordinal <- paste0(1:12, c("st", "nd", "rd", rep("th", 9)))
+  words <- c("first", "second", "third", "fourth", "fifth", "sixth",
+    "seventh", "eighth", "ninth", "tenth", "eleventh", "twelfth")
+  aliases <- c(aliases, lapply(1:12, function(grade) {
+    c(as.character(grade), sprintf("%02d", grade),
+      paste("grade", grade), paste0("grade", grade),
+      paste("g", grade), paste0("g", grade),
+      ordinal[grade], paste(ordinal[grade], "grade"),
+      words[grade], paste(words[grade], "grade"))
+  }))
+  lookup <- setNames(rep(seq_along(aliases), lengths(aliases)),
+    unlist(aliases, use.names = FALSE))
+  ranks <- unname(lookup[keys])
+  unmatched <- grades[is.na(ranks)]
+  ambiguous <- grades[!is.na(ranks) &
+    (duplicated(ranks) | duplicated(ranks, fromLast = TRUE))]
+  if (!length(unmatched) && !length(ambiguous)) {
+    grades <- grades[order(ranks)]
+  }
+  list(grades = grades, unmatched = unmatched, ambiguous = ambiguous)
+}
+
 read_upload <- function(path, name) {
   extension <- tolower(tools::file_ext(name))
   if (extension == "csv") {

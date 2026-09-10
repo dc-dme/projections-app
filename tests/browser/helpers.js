@@ -95,7 +95,7 @@ const test = base.extend({
         return false;
       }, { timeout: 120_000, message: 'Shinylive iframe boots and renders real Shiny example data' }).toBe(true);
       expect(await frame.evaluate(() => crossOriginIsolated), 'GitHub Pages-like non-isolated iframe').toBe(false);
-      await expect(frame.locator('#history_preview tbody tr')).toHaveCount(9);
+      await expect(frame.locator('#history_status')).toBeVisible();
       await use(frame);
       if (testInfo.errors.length === 0) {
         const screenshot = testInfo.outputPath('workflow-complete.png');
@@ -103,8 +103,10 @@ const test = base.extend({
         await testInfo.attach('workflow-complete', { path: screenshot, contentType: 'image/png' });
       }
     } finally {
+      const diagnostics = testInfo.outputPath('browser-diagnostics.json');
+      await fs.writeFile(diagnostics, JSON.stringify({ consoleMessages, errors, failedRequests }, null, 2));
       await testInfo.attach('browser-diagnostics', {
-        body: JSON.stringify({ consoleMessages, errors, failedRequests }, null, 2),
+        path: diagnostics,
         contentType: 'application/json',
       });
       expect(errors, 'Uncaught page errors').toEqual([]);
@@ -116,8 +118,12 @@ const test = base.extend({
   },
 });
 
-async function tab(app, name) {
-  await app.getByRole('tab', { name: new RegExp(name) }).click();
+async function disclosure(app, id) {
+  const details = app.locator(`details#${id}`);
+  if (!await details.evaluate(element => element.open)) {
+    await details.locator(':scope > summary').click();
+  }
+  await expect(details).toHaveAttribute('open', '');
 }
 
 async function number(app, id, value) {
@@ -131,8 +137,11 @@ async function rows(app, id) {
 }
 
 async function results(app, expected) {
-  await tab(app, '3. Review projections');
-  await expect(app.locator('#result_status [role="status"]')).toContainText('Projections calculated');
+  await expect(app.locator('#result_status [role="status"], #result_status[role="status"]')).toContainText(/Example data|Uploaded data/);
+  await expect(app.locator('#results .projection-body')).toBeVisible();
+  await expect(app.locator('#projection_download')).toBeVisible();
+  await disclosure(app, 'projection_details');
+  await expect(app.locator('#projection_details #projection_table')).toBeVisible();
   await expect.poll(async () => (await rows(app, 'projection_table')).map(row =>
     [Number(row[0]), row[1], Number(row[2])])).toEqual(expected);
 }
@@ -184,4 +193,16 @@ async function plot(app) {
   return image.getAttribute('src');
 }
 
-module.exports = { test, expect, tab, number, rows, results, file, download, plot };
+async function layoutScreenshot(page, app, path) {
+  const viewport = page.viewportSize();
+  const height = await app.evaluate(() => Math.max(document.body.scrollHeight, document.documentElement.scrollHeight));
+  // Expand the outer viewport vertically so it does not clip the scrolling iframe.
+  try {
+    await page.setViewportSize({ width: viewport.width, height: Math.ceil(height) + 50 });
+    await app.locator('body').screenshot({ path });
+  } finally {
+    await page.setViewportSize(viewport);
+  }
+}
+
+module.exports = { test, expect, disclosure, number, rows, results, file, download, plot, layoutScreenshot };

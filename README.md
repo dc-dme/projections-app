@@ -21,12 +21,24 @@ features work without it. No external font service or database is required.
 
 ## Workflow
 
-1. Explore the example or upload history. Download templates from the first tab.
-2. Enter the exact low-to-high grade order. Default base counts come from the
-   latest historical year; a separate base upload can override them.
-3. Choose a horizon and ratio method. Supply entry counts by year, upload them,
-   or explicitly hold them at the base entry-grade count.
-4. Explore totals or a grade, inspect ratios, and download full-precision results.
+1. Upload historical enrollment directly, or explore the example already shown.
+   Uploading a file automatically selects your data. The CSV template is beside
+   the upload control.
+2. Check the suggested low-to-high grade order, projection period, and entry
+   assumptions. Common grade labels are ordered automatically without being
+   renamed; uncertain labels retain their file order and are flagged for review.
+   Entry counts can be entered by year, uploaded, or held at the base-year count.
+3. Review the results alongside the inputs, or below them on mobile. Results
+   update automatically; there is no separate calculation button or tab to open.
+   Use **View projection** to jump to the results, then download the CSV.
+4. Optional controls are under **Base enrollment and calculation settings**:
+   override the default latest-year base, select another ratio method, or add a
+   school/district name to the chart. File guidance, data previews, the projected
+   table, and progression ratios each have their own expandable section.
+
+The interface takes inspiration from public-service design principles: direct
+language, a clear hierarchy, visible defaults, keyboard-accessible controls, and
+details shown only when needed. It does not use GOV.UK branding, assets, or code.
 
 ## File Format
 
